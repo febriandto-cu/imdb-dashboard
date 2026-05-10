@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem \"c:\\\\Users\\\\febri\\\\Developments\\\\imdb-dashboard\" -Name)",
+      "Bash(python -c ' *)",
+      "Bash(python -m http.server 8787)"
+    ]
+  }
+}

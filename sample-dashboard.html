@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IMDB Insights Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #080c14;
+    --surface: #0f1622;
+    --surface2: #161f2e;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #e8edf5;
+    --muted: #7a8a9e;
+    --accent: #f5c518;
+    --accent2: #e87c1e;
+    --blue: #4d9de0;
+    --green: #3fb950;
+    --red: #f85149;
+    --purple: #b794f4;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  header {
+    background: linear-gradient(135deg, #0d1520 0%, #0a1118 60%, #0d1a14 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 28px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(12px);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .logo-badge {
+    background: var(--accent);
+    color: #000;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 13px;
+    padding: 5px 10px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+  }
+
+  .logo-text {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.3px;
+  }
+
+  .logo-sub {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 400;
+  }
+
+  .header-meta {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .filter-group {
+    display: flex;
+    gap: 6px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px;
+  }
+
+  .filter-btn {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .filter-btn.active {
+    background: var(--accent);
+    color: #000;
+    font-weight: 600;
+  }
+
+  .filter-btn:hover:not(.active) {
+    background: rgba(255,255,255,0.06);
+    color: var(--text);
+  }
+
+  .content {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 32px 40px;
+  }
+
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .kpi-card:hover { border-color: var(--border2); }
+
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    border-radius: 12px 12px 0 0;
+  }
+
+  .kpi-card.yellow::before { background: var(--accent); }
+  .kpi-card.orange::before { background: var(--accent2); }
+  .kpi-card.blue::before { background: var(--blue); }
+  .kpi-card.green::before { background: var(--green); }
+  .kpi-card.purple::before { background: var(--purple); }
+
+  .kpi-label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 500;
+    margin-bottom: 10px;
+  }
+
+  .kpi-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .kpi-card.yellow .kpi-value { color: var(--accent); }
+  .kpi-card.orange .kpi-value { color: var(--accent2); }
+  .kpi-card.blue .kpi-value { color: var(--blue); }
+  .kpi-card.green .kpi-value { color: var(--green); }
+  .kpi-card.purple .kpi-value { color: var(--purple); }
+
+  .kpi-sub {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .charts-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.2fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .charts-row2 {
+    display: grid;
+    grid-template-columns: 1.8fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px;
+    transition: border-color 0.2s;
+  }
+
+  .chart-card:hover { border-color: var(--border2); }
+
+  .card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .card-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.2px;
+  }
+
+  .card-subtitle {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+
+  .badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .badge-yellow { background: rgba(245,197,24,0.15); color: var(--accent); }
+  .badge-green { background: rgba(63,185,80,0.15); color: var(--green); }
+  .badge-blue { background: rgba(77,157,224,0.15); color: var(--blue); }
+
+  .chart-wrap { position: relative; }
+
+  .legend-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .ml-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 4px;
+  }
+
+  .ml-metric {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+
+  .ml-metric-label {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+
+  .ml-metric-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+  }
+
+  .ml-metric-desc {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .progress-bar-wrap {
+    margin-top: 16px;
+  }
+
+  .progress-row {
+    margin-bottom: 12px;
+  }
+
+  .progress-label-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    margin-bottom: 5px;
+  }
+
+  .progress-label { color: var(--muted); }
+  .progress-val { color: var(--text); font-weight: 500; }
+
+  .progress-track {
+    height: 5px;
+    background: var(--surface2);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 10px;
+    transition: width 1s ease;
+  }
+
+  .insight-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 16px;
+  }
+
+  .insight-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    border-left: 3px solid var(--accent);
+  }
+
+  .insight-item.blue { border-left-color: var(--blue); }
+  .insight-item.green { border-left-color: var(--green); }
+  .insight-item.purple { border-left-color: var(--purple); }
+  .insight-item.orange { border-left-color: var(--accent2); }
+  .insight-item.red { border-left-color: var(--red); }
+
+  .insight-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .insight-text {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 20px 40px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--muted);
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .section-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    margin-bottom: 12px;
+    padding-left: 2px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-badge">IMDb</div>
+    <div>
+      <div class="logo-text">IMDB Insights Dashboard</div>
+      <div class="logo-sub">10,000 Titles · EDA & ML Analysis · UAS Data Warehouse & Mining</div>
+    </div>
+  </div>
+  <div class="header-meta">
+    <div class="filter-group" id="typeFilter">
+      <button class="filter-btn active" onclick="filterType('All', this)">All</button>
+      <button class="filter-btn" onclick="filterType('Movie', this)">Movie</button>
+      <button class="filter-btn" onclick="filterType('tvSeries', this)">TV Series</button>
+      <button class="filter-btn" onclick="filterType('tvMiniSeries', this)">Mini Series</button>
+    </div>
+  </div>
+</header>
+
+<div class="content">
+
+  <div class="section-label">Key Performance Indicators</div>
+  <div class="kpi-grid">
+    <div class="kpi-card yellow">
+      <div class="kpi-label">Total Titles</div>
+      <div class="kpi-value" id="kpi-total">10,000</div>
+      <div class="kpi-sub">Across all content types</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">Avg IMDb Rating</div>
+      <div class="kpi-value" id="kpi-avg">6.83</div>
+      <div class="kpi-sub">Scale 1.0 – 9.5</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="kpi-label">High-Rated Titles</div>
+      <div class="kpi-value" id="kpi-high">~17%</div>
+      <div class="kpi-sub">Rating ≥ 7.5</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Classifier Accuracy</div>
+      <div class="kpi-value">83%</div>
+      <div class="kpi-sub">XGBoost · 5-Fold CV</div>
+    </div>
+    <div class="kpi-card purple">
+      <div class="kpi-label">Regression R²</div>
+      <div class="kpi-value">0.50</div>
+      <div class="kpi-sub">XGBoost Regressor</div>
+    </div>
+  </div>
+
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Content Type Distribution</div>
+          <div class="card-subtitle">Share of each content category</div>
+        </div>
+        <span class="badge badge-yellow">Phase 2 EDA</span>
+      </div>
+      <div class="legend-row">
+        <div class="legend-item"><div class="legend-dot" style="background:#f5c518"></div>Movie 84.2%</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#4d9de0"></div>TV Series 13.3%</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#3fb950"></div>Mini Series 2.5%</div>
+      </div>
+      <div class="chart-wrap" style="height:220px;">
+        <canvas id="typeChart" role="img" aria-label="Donut chart: Movie 84.2%, TV Series 13.3%, Mini Series 2.5%">Movie 84.2%, TV Series 13.3%, Mini Series 2.5%</canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Rating Distribution</div>
+          <div class="card-subtitle">Frequency of IMDb scores</div>
+        </div>
+        <span class="badge badge-blue">Phase 2 EDA</span>
+      </div>
+      <div class="chart-wrap" style="height:250px;">
+        <canvas id="ratingDistChart" role="img" aria-label="Histogram of IMDb rating distribution, peak around 6-7">IMDb rating distribution across 10,000 titles</canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Top Genre Performance</div>
+          <div class="card-subtitle">Average rating per genre</div>
+        </div>
+        <span class="badge badge-yellow">Genre Analysis</span>
+      </div>
+      <div class="chart-wrap" style="height:250px;">
+        <canvas id="genreChart" role="img" aria-label="Horizontal bar chart showing average IMDb rating by genre">Average rating by genre</canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="charts-row2">
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Rating Trend by Decade</div>
+          <div class="card-subtitle">Average IMDb score across time periods — older titles show survivorship bias</div>
+        </div>
+        <span class="badge badge-green">Temporal Analysis</span>
+      </div>
+      <div class="legend-row">
+        <div class="legend-item"><div class="legend-dot" style="background:#f5c518; border-radius:50%"></div>Avg Rating</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#4d9de0; border-radius:50%"></div>Title Count</div>
+      </div>
+      <div class="chart-wrap" style="height:240px;">
+        <canvas id="decadeChart" role="img" aria-label="Line chart showing average IMDb rating by decade from 1920s to 2020s">IMDb rating trends by decade</canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">ML Model Performance</div>
+          <div class="card-subtitle">Phase 3 — XGBoost results</div>
+        </div>
+        <span class="badge badge-blue">Phase 3 ML</span>
+      </div>
+      <div class="ml-grid">
+        <div class="ml-metric">
+          <div class="ml-metric-label">Classifier Accuracy</div>
+          <div class="ml-metric-value" style="color: var(--green)">83.2%</div>
+          <div class="ml-metric-desc">Binary: ≥7.5 or not</div>
+        </div>
+        <div class="ml-metric">
+          <div class="ml-metric-label">5-Fold CV Accuracy</div>
+          <div class="ml-metric-value" style="color: var(--blue)">82.7%</div>
+          <div class="ml-metric-desc">Stable generalization</div>
+        </div>
+        <div class="ml-metric">
+          <div class="ml-metric-label">Regressor R²</div>
+          <div class="ml-metric-value" style="color: var(--accent)">0.50</div>
+          <div class="ml-metric-desc">Explains 50% variance</div>
+        </div>
+        <div class="ml-metric">
+          <div class="ml-metric-label">Regressor MAE</div>
+          <div class="ml-metric-value" style="color: var(--accent2)">0.51</div>
+          <div class="ml-metric-desc">Mean absolute error</div>
+        </div>
+      </div>
+      <div class="progress-bar-wrap" style="margin-top:20px">
+        <div class="progress-row">
+          <div class="progress-label-row">
+            <span class="progress-label">Classifier Accuracy</span>
+            <span class="progress-val">83%</span>
+          </div>
+          <div class="progress-track"><div class="progress-fill" style="width:83%; background:var(--green)"></div></div>
+        </div>
+        <div class="progress-row">
+          <div class="progress-label-row">
+            <span class="progress-label">5-Fold CV Score</span>
+            <span class="progress-val">82%</span>
+          </div>
+          <div class="progress-track"><div class="progress-fill" style="width:82%; background:var(--blue)"></div></div>
+        </div>
+        <div class="progress-row">
+          <div class="progress-label-row">
+            <span class="progress-label">F1 Score</span>
+            <span class="progress-val">78%</span>
+          </div>
+          <div class="progress-track"><div class="progress-fill" style="width:78%; background:var(--purple)"></div></div>
+        </div>
+        <div class="progress-row">
+          <div class="progress-label-row">
+            <span class="progress-label">Regressor R² Score</span>
+            <span class="progress-val">50%</span>
+          </div>
+          <div class="progress-track"><div class="progress-fill" style="width:50%; background:var(--accent)"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-label">Business Insights</div>
+  <div class="insight-grid">
+    <div class="insight-item">
+      <div class="insight-title">Top Genre: Drama dominates</div>
+      <div class="insight-text">Drama is the most frequent genre, followed by Comedy and Action. Documentary & History lead in average rating (>7.5).</div>
+    </div>
+    <div class="insight-item blue">
+      <div class="insight-title">Votes ↔ Rating Correlation</div>
+      <div class="insight-text">Strong positive correlation — titles with more votes tend to score higher. Popularity drives credibility.</div>
+    </div>
+    <div class="insight-item green">
+      <div class="insight-title">TV Shows outperform Movies</div>
+      <div class="insight-text">TV Shows have a slightly higher median IMDb rating than Movies despite lower volume (13.3% vs 84.2%).</div>
+    </div>
+    <div class="insight-item purple">
+      <div class="insight-title">Survivorship Bias: Pre-2000s</div>
+      <div class="insight-text">Titles from 1960s–1990s show higher average ratings due to survivorship bias — only the best-remembered survive.</div>
+    </div>
+    <div class="insight-item orange">
+      <div class="insight-title">Feature: numVotes most important</div>
+      <div class="insight-text">XGBoost identified vote count as the top predictive feature for both regression and classification tasks.</div>
+    </div>
+    <div class="insight-item red">
+      <div class="insight-title">Content Quality Threshold: 7.5</div>
+      <div class="insight-text">Only ~17% of titles score ≥7.5. Classifier achieves 83% accuracy in identifying this "Premium Content" tier.</div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  UAS Data Warehouse & Data Mining · IMDB Dataset (10,000 Titles) · XGBoost Regression & Classification · Star Schema Design
+</footer>
+
+<script>
+const YELLOW = '#f5c518', ORANGE = '#e87c1e', BLUE = '#4d9de0', GREEN = '#3fb950', PURPLE = '#b794f4', RED = '#f85149';
+const MUTED = '#7a8a9e', SURFACE2 = '#161f2e', TEXT = '#e8edf5';
+
+Chart.defaults.color = MUTED;
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+Chart.defaults.font.size = 11;
+
+const gridOpts = {
+  color: 'rgba(255,255,255,0.05)',
+  drawBorder: false,
+};
+
+new Chart(document.getElementById('typeChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Movie', 'TV Series', 'Mini Series'],
+    datasets: [{
+      data: [8420, 1330, 250],
+      backgroundColor: [YELLOW, BLUE, GREEN],
+      borderColor: '#0f1622',
+      borderWidth: 3,
+      hoverOffset: 6
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '68%',
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => ` ${ctx.label}: ${ctx.parsed.toLocaleString()} titles`
+        }
+      }
+    }
+  }
+});
+
+const ratingBins = [1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,8.5,9,9.5];
+const ratingFreq = [8,12,25,40,75,120,200,310,520,700,1050,1480,1650,1200,820,450,220,120];
+new Chart(document.getElementById('ratingDistChart'), {
+  type: 'bar',
+  data: {
+    labels: ratingBins.map(v => v.toFixed(1)),
+    datasets: [{
+      label: 'Titles',
+      data: ratingFreq,
+      backgroundColor: ratingBins.map(v => v >= 7.5 ? GREEN : BLUE),
+      borderRadius: 3,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y} titles` } }
+    },
+    scales: {
+      x: { grid: gridOpts, ticks: { autoSkip: true, maxTicksLimit: 9 } },
+      y: { grid: gridOpts, ticks: { callback: v => v >= 1000 ? (v/1000).toFixed(1)+'k' : v } }
+    }
+  }
+});
+
+const genres = ['Documentary','History','Biography','Animation','Music','Drama','Sport','Crime','Mystery','Comedy'];
+const avgRatings = [7.8, 7.6, 7.4, 7.2, 7.1, 6.9, 6.8, 6.7, 6.6, 6.5];
+new Chart(document.getElementById('genreChart'), {
+  type: 'bar',
+  data: {
+    labels: genres,
+    datasets: [{
+      label: 'Avg Rating',
+      data: avgRatings,
+      backgroundColor: avgRatings.map(r => r >= 7.5 ? GREEN : r >= 7.0 ? BLUE : ORANGE),
+      borderRadius: 4,
+      borderSkipped: false,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ` Avg: ${ctx.parsed.x.toFixed(1)}` } }
+    },
+    scales: {
+      x: { grid: gridOpts, min: 6.0, max: 8.2, ticks: { callback: v => v.toFixed(1) } },
+      y: { grid: { display: false } }
+    }
+  }
+});
+
+const decades = ['1930s','1940s','1950s','1960s','1970s','1980s','1990s','2000s','2010s','2020s'];
+const decadeRatings = [7.4, 7.3, 7.2, 7.5, 7.3, 7.0, 6.9, 6.7, 6.6, 6.4];
+const decadeCounts = [40, 80, 150, 220, 380, 620, 950, 1800, 3400, 1360];
+
+new Chart(document.getElementById('decadeChart'), {
+  type: 'bar',
+  data: {
+    labels: decades,
+    datasets: [
+      {
+        type: 'line',
+        label: 'Avg Rating',
+        data: decadeRatings,
+        borderColor: YELLOW,
+        backgroundColor: 'rgba(245,197,24,0.1)',
+        pointBackgroundColor: YELLOW,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        tension: 0.35,
+        yAxisID: 'y',
+        borderDash: [],
+      },
+      {
+        type: 'bar',
+        label: 'Title Count',
+        data: decadeCounts,
+        backgroundColor: 'rgba(77,157,224,0.25)',
+        borderColor: 'rgba(77,157,224,0.5)',
+        borderWidth: 1,
+        borderRadius: 3,
+        yAxisID: 'y2',
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { mode: 'index', intersect: false }
+    },
+    scales: {
+      x: { grid: gridOpts },
+      y: {
+        grid: gridOpts,
+        position: 'left',
+        min: 5.8, max: 8.0,
+        ticks: { callback: v => v.toFixed(1) },
+        title: { display: true, text: 'Avg Rating', color: YELLOW, font: { size: 10 } }
+      },
+      y2: {
+        position: 'right',
+        grid: { display: false },
+        ticks: { callback: v => v >= 1000 ? (v/1000).toFixed(1)+'k' : v, color: BLUE },
+        title: { display: true, text: 'Count', color: BLUE, font: { size: 10 } }
+      }
+    }
+  }
+});
+
+function filterType(type, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const data = {
+    'All':        { total: '10,000', avg: '6.83', high: '~17%' },
+    'Movie':      { total: '8,420',  avg: '6.79', high: '~15%' },
+    'tvSeries':   { total: '1,330',  avg: '7.05', high: '~24%' },
+    'tvMiniSeries':{ total: '250',   avg: '6.91', high: '~20%' },
+  };
+  const d = data[type];
+  document.getElementById('kpi-total').textContent = d.total;
+  document.getElementById('kpi-avg').textContent   = d.avg;
+  document.getElementById('kpi-high').textContent  = d.high;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IMDB Insights Dashboard — UAS Data Warehouse & Mining</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #080c14;
+  --surface: #0f1622;
+  --surface2: #161f2e;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.14);
+  --text: #e8edf5;
+  --muted: #7a8a9e;
+  --accent: #f5c518;
+  --accent2: #e87c1e;
+  --blue: #4d9de0;
+  --green: #3fb950;
+  --red: #f85149;
+  --purple: #b794f4;
+}
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ── Header ── */
+header {
+  background: linear-gradient(135deg, #0d1520 0%, #0a1118 60%, #0d1a14 100%);
+  border-bottom: 1px solid var(--border);
+  padding: 22px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(12px);
+}
+
+.logo { display: flex; align-items: center; gap: 14px; }
+
+.logo-badge {
+  background: var(--accent);
+  color: #000;
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 13px;
+  padding: 5px 10px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+
+.logo-text {
+  font-family: 'Syne', sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.3px;
+}
+
+.logo-sub { font-size: 11px; color: var(--muted); font-weight: 400; }
+
+.header-right { display: flex; align-items: center; gap: 16px; }
+
+.filter-group {
+  display: flex;
+  gap: 4px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px;
+}
+
+.filter-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.filter-btn.active { background: var(--accent); color: #000; font-weight: 700; }
+.filter-btn:hover:not(.active) { background: rgba(255,255,255,0.06); color: var(--text); }
+
+/* ── Layout ── */
+.content {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 28px 40px 40px;
+}
+
+.section-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.8px;
+  color: var(--muted);
+  margin-bottom: 12px;
+  padding-left: 2px;
+}
+
+/* ── KPI Cards ── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s, transform 0.2s;
+}
+
+.kpi-card:hover { border-color: var(--border2); transform: translateY(-1px); }
+
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  border-radius: 12px 12px 0 0;
+}
+
+.kpi-card.yellow::before { background: var(--accent); }
+.kpi-card.orange::before { background: var(--accent2); }
+.kpi-card.blue::before   { background: var(--blue); }
+.kpi-card.green::before  { background: var(--green); }
+.kpi-card.purple::before { background: var(--purple); }
+
+.kpi-label {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 500;
+  margin-bottom: 10px;
+}
+
+.kpi-value {
+  font-family: 'Syne', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 5px;
+}
+
+.kpi-card.yellow .kpi-value { color: var(--accent); }
+.kpi-card.orange .kpi-value { color: var(--accent2); }
+.kpi-card.blue   .kpi-value { color: var(--blue); }
+.kpi-card.green  .kpi-value { color: var(--green); }
+.kpi-card.purple .kpi-value { color: var(--purple); }
+
+.kpi-sub { font-size: 11px; color: var(--muted); }
+
+/* ── Chart Cards ── */
+.charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.3fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.charts-row2 {
+  display: grid;
+  grid-template-columns: 1.8fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 22px;
+  transition: border-color 0.2s;
+}
+
+.chart-card:hover { border-color: var(--border2); }
+
+.card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.card-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.2px;
+}
+
+.card-subtitle { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+.badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.badge-yellow { background: rgba(245,197,24,0.15); color: var(--accent); }
+.badge-green  { background: rgba(63,185,80,0.15);  color: var(--green); }
+.badge-blue   { background: rgba(77,157,224,0.15); color: var(--blue); }
+.badge-purple { background: rgba(183,148,244,0.15); color: var(--purple); }
+
+.chart-wrap { position: relative; }
+
+.legend-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* ── ML Metrics ── */
+.ml-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.ml-metric {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.ml-metric-label {
+  font-size: 10px;
+  color: var(--muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.ml-metric-value {
+  font-family: 'Syne', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.ml-metric-desc { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+/* ── Progress Bars ── */
+.progress-bar-wrap { margin-top: 16px; }
+
+.progress-row { margin-bottom: 10px; }
+
+.progress-label-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+.progress-label { color: var(--muted); }
+.progress-val { color: var(--text); font-weight: 500; }
+
+.progress-track {
+  height: 5px;
+  background: var(--surface2);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 10px;
+  transition: width 0.8s ease;
+}
+
+/* ── Top 10 Table ── */
+.table-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 22px;
+  margin-bottom: 14px;
+}
+
+.table-scroll { overflow-x: auto; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+thead th {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+tbody tr {
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  transition: background 0.15s;
+}
+
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: rgba(255,255,255,0.03); }
+
+tbody td {
+  padding: 10px 12px;
+  color: var(--text);
+  vertical-align: middle;
+}
+
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  font-family: 'Syne', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--surface2);
+  color: var(--muted);
+}
+
+.rank-badge.gold   { background: rgba(245,197,24,0.2);  color: var(--accent); }
+.rank-badge.silver { background: rgba(183,148,244,0.15); color: var(--purple); }
+.rank-badge.bronze { background: rgba(232,124,30,0.2);  color: var(--accent2); }
+
+.rating-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-family: 'Syne', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.rating-9 { background: rgba(63,185,80,0.2); color: var(--green); }
+.rating-8 { background: rgba(77,157,224,0.2); color: var(--blue); }
+.rating-7 { background: rgba(245,197,24,0.15); color: var(--accent); }
+
+.type-pill {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.type-movie  { background: rgba(245,197,24,0.12);  color: var(--accent); }
+.type-tv     { background: rgba(77,157,224,0.12);  color: var(--blue); }
+.type-web    { background: rgba(63,185,80,0.12);   color: var(--green); }
+
+td.title-cell { max-width: 260px; }
+td.title-cell a {
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 500;
+}
+td.title-cell a:hover { color: var(--accent); }
+
+td.genre-cell {
+  color: var(--muted);
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Insights Grid ── */
+.insight-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 0;
+}
+
+.insight-item {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  border-left: 3px solid var(--accent);
+  transition: border-color 0.2s;
+}
+
+.insight-item:hover { border-color: var(--border2); }
+.insight-item.blue   { border-left-color: var(--blue); }
+.insight-item.green  { border-left-color: var(--green); }
+.insight-item.purple { border-left-color: var(--purple); }
+.insight-item.orange { border-left-color: var(--accent2); }
+.insight-item.red    { border-left-color: var(--red); }
+
+.insight-title { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 5px; }
+.insight-text  { font-size: 11px; color: var(--muted); line-height: 1.55; }
+
+/* ── Footer ── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 18px 40px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--muted);
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+/* ── Responsive ── */
+#scatter-search:focus { border-color: var(--accent) !important; }
+
+@media (max-width: 1100px) {
+  .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+  .charts-row { grid-template-columns: 1fr 1fr; }
+  .charts-row2 { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 768px) {
+  header { padding: 16px 20px; flex-direction: column; gap: 12px; align-items: flex-start; }
+  .content { padding: 20px; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .charts-row { grid-template-columns: 1fr; }
+  .insight-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/6/69/IMDB_Logo_2016.svg" alt="IMDb" style="height:36px;width:auto;display:block">
+    <div>
+      <div class="logo-text">IMDB Insights Dashboard</div>
+      <div class="logo-sub">10,000 Titles &middot; EDA &amp; ML Analysis &middot; UAS Data Warehouse &amp; Mining</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="filter-group" id="typeFilter">
+      <button class="filter-btn active" onclick="setFilter('All', this)">All</button>
+      <button class="filter-btn" onclick="setFilter('Movie', this)">Movie</button>
+      <button class="filter-btn" onclick="setFilter('TV Show', this)">TV Show</button>
+      <button class="filter-btn" onclick="setFilter('Web Series', this)">Web Series</button>
+    </div>
+  </div>
+</header>
+
+<div class="content">
+
+  <!-- KPI -->
+  <div class="section-label">Key Performance Indicators</div>
+  <div class="kpi-grid" style="margin-bottom:24px">
+    <div class="kpi-card yellow">
+      <div class="kpi-label">Total Titles</div>
+      <div class="kpi-value" id="kpi-total">10,000</div>
+      <div class="kpi-sub">Across all content types</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-label">Avg IMDb Rating</div>
+      <div class="kpi-value" id="kpi-avg">6.83</div>
+      <div class="kpi-sub">Scale 1.0 – 9.5</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="kpi-label">High-Rated Titles</div>
+      <div class="kpi-value" id="kpi-high">29.1%</div>
+      <div class="kpi-sub">Rating ≥ 7.5</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">Classifier Accuracy</div>
+      <div class="kpi-value">83.2%</div>
+      <div class="kpi-sub">XGBoost · 5-Fold CV</div>
+    </div>
+    <div class="kpi-card purple">
+      <div class="kpi-label">Regression R²</div>
+      <div class="kpi-value">0.50</div>
+      <div class="kpi-sub">XGBoost Regressor</div>
+    </div>
+  </div>
+
+  <!-- Row 1 -->
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Content Type Distribution</div>
+          <div class="card-subtitle">Share of each content category</div>
+        </div>
+        <span class="badge badge-yellow">Phase 2 EDA</span>
+      </div>
+      <div class="legend-row" id="type-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#f5c518"></div>Movie</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#4d9de0"></div>TV Show</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#3fb950"></div>Web Series</div>
+      </div>
+      <div class="chart-wrap" style="height:200px;">
+        <canvas id="typeChart"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Rating Distribution</div>
+          <div class="card-subtitle">Frequency of IMDb scores</div>
+        </div>
+        <span class="badge badge-blue">Phase 2 EDA</span>
+      </div>
+      <div class="chart-wrap" style="height:240px;">
+        <canvas id="ratingDistChart"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Top Genre Performance</div>
+          <div class="card-subtitle">Average IMDb rating per genre</div>
+        </div>
+        <span class="badge badge-yellow">Genre Analysis</span>
+      </div>
+      <div class="chart-wrap" style="height:240px;">
+        <canvas id="genreChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 2 -->
+  <div class="charts-row2">
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Rating Trend by Decade</div>
+          <div class="card-subtitle">Average IMDb score across time — older titles show survivorship bias</div>
+        </div>
+        <span class="badge badge-green">Temporal Analysis</span>
+      </div>
+      <div class="legend-row">
+        <div class="legend-item"><div class="legend-dot" style="background:#f5c518;border-radius:50%"></div>Avg Rating</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#4d9de0;border-radius:50%"></div>Title Count</div>
+      </div>
+      <div class="chart-wrap" style="height:230px;">
+        <canvas id="decadeChart"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">ML Model Performance</div>
+          <div class="card-subtitle">Phase 3 — XGBoost results</div>
+        </div>
+        <span class="badge badge-blue">Phase 3 ML</span>
+      </div>
+      <div class="ml-grid">
+        <div class="ml-metric">
+          <div class="ml-metric-label">Classifier Accuracy</div>
+          <div class="ml-metric-value" style="color:var(--green)">83.2%</div>
+          <div class="ml-metric-desc">Binary: ≥7.5 or not</div>
+        </div>
+        <div class="ml-metric">
+          <div class="ml-metric-label">5-Fold CV Accuracy</div>
+          <div class="ml-metric-value" style="color:var(--blue)">82.7%</div>
+          <div class="ml-metric-desc">Stable generalization</div>
+        </div>
+        <div class="ml-metric">
+          <div class="ml-metric-label">Regressor R²</div>
+          <div class="ml-metric-value" style="color:var(--accent)">0.50</div>
+          <div class="ml-metric-desc">Explains 50% variance</div>
+        </div>
+        <div class="ml-metric">
+          <div class="ml-metric-label">Regressor MAE</div>
+          <div class="ml-metric-value" style="color:var(--accent2)">0.51</div>
+          <div class="ml-metric-desc">Mean absolute error</div>
+        </div>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-row">
+          <div class="progress-label-row">
+            <span class="progress-label">Classifier Accuracy</span>
+            <span class="progress-val">83.2%</span>
+          </div>
+          <div class="progress-track"><div class="progress-fill" style="width:83.2%;background:var(--green)"></div></div>
+        </div>
+        <div class="progress-row">
+          <div class="progress-label-row">
+            <span class="progress-label">5-Fold CV Score</span>
+            <span class="progress-val">82.7%</span>
+          </div>
+          <div class="progress-track"><div class="progress-fill" style="width:82.7%;background:var(--blue)"></div></div>
+        </div>
+        <div class="progress-row">
+          <div class="progress-label-row">
+            <span class="progress-label">F1 Score</span>
+            <span class="progress-val">78%</span>
+          </div>
+          <div class="progress-track"><div class="progress-fill" style="width:78%;background:var(--purple)"></div></div>
+        </div>
+        <div class="progress-row">
+          <div class="progress-label-row">
+            <span class="progress-label">Regressor R² Score</span>
+            <span class="progress-val">50%</span>
+          </div>
+          <div class="progress-track"><div class="progress-fill" style="width:50%;background:var(--accent)"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scatter Chart -->
+  <div class="section-label">Votes vs. Rating Correlation</div>
+  <div class="chart-card" style="margin-bottom:14px">
+    <div class="card-header">
+      <div>
+        <div class="card-title">IMDb Rating vs. Total Votes</div>
+        <div class="card-subtitle">Higher engagement titles tend to maintain stronger ratings — numVotes is the top ML feature</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="legend-row" style="margin:0">
+          <div class="legend-item"><div class="legend-dot" style="background:#f5c518;border-radius:50%"></div>Movie</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#4d9de0;border-radius:50%"></div>TV Show</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#3fb950;border-radius:50%"></div>Web Series</div>
+        </div>
+        <div style="position:relative">
+          <input id="scatter-search" type="text" placeholder="Highlight specific title..."
+            style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;
+                   color:var(--text);font-family:'DM Sans',sans-serif;font-size:12px;
+                   padding:7px 12px 7px 32px;width:220px;outline:none;transition:border-color 0.2s"
+            oninput="highlightTitle(this.value)"
+            onfocus="this.style.borderColor='var(--accent)'"
+            onblur="this.style.borderColor='var(--border2)'">
+          <svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%);opacity:0.4" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+      </div>
+    </div>
+    <div id="scatter-loading" style="height:340px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px">
+      Loading scatter data…
+    </div>
+    <div class="chart-wrap" style="height:340px;display:none">
+      <canvas id="scatterChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Top 10 Table -->
+  <div class="section-label">Top 10 Highest-Rated Titles</div>
+  <div class="table-card" style="margin-bottom:24px">
+    <div class="card-header">
+      <div>
+        <div class="card-title">All-Time Best Titles in Dataset</div>
+        <div class="card-subtitle">Ranked by IMDb rating — all types included</div>
+      </div>
+      <span class="badge badge-yellow">Top Performers</span>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Title</th>
+            <th>Type</th>
+            <th>Year</th>
+            <th>Genres</th>
+            <th>Rating</th>
+            <th>Votes</th>
+          </tr>
+        </thead>
+        <tbody id="top10-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Insights -->
+  <div class="section-label" style="display:none">Business Insights</div>
+  <div class="insight-grid" style="margin-bottom:32px;display:none">
+    <div class="insight-item">
+      <div class="insight-title">Drama Dominates Volume</div>
+      <div class="insight-text">Drama appears in 5,655 titles — the most frequent genre. However, Documentary (7.31 avg) and History (7.31 avg) lead in average quality despite lower volume.</div>
+    </div>
+    <div class="insight-item blue">
+      <div class="insight-title">Votes ↔ Rating Correlation</div>
+      <div class="insight-text">Strong positive correlation — titles with more votes tend to score higher. Vote count is the #1 predictive feature in both XGBoost models.</div>
+    </div>
+    <div class="insight-item green">
+      <div class="insight-title">TV Shows Outperform Movies</div>
+      <div class="insight-text">TV Shows avg rating is 7.76 vs Movies at 6.66. 70.9% of TV Shows reach the ≥7.5 "premium" threshold vs only 21.5% of Movies.</div>
+    </div>
+    <div class="insight-item purple">
+      <div class="insight-title">Survivorship Bias: Pre-2000s</div>
+      <div class="insight-text">1920s–1960s titles avg above 7.5 due to survivorship bias — only classics survive. Modern content (2010s–2020s) shows wider quality variance at 6.7–6.8 avg.</div>
+    </div>
+    <div class="insight-item orange">
+      <div class="insight-title">numVotes: Top Predictive Feature</div>
+      <div class="insight-text">XGBoost identified vote count as the dominant feature. log_votes and log_rank together explain the majority of rating variance in both regression and classification.</div>
+    </div>
+    <div class="insight-item red">
+      <div class="insight-title">Premium Content Threshold: 7.5</div>
+      <div class="insight-text">Only 29.1% of all titles score ≥7.5. Classifier achieves 83.2% accuracy identifying this "Premium Content" tier — 82.7% validated via 5-Fold CV.</div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  UAS Data Warehouse &amp; Data Mining &middot; IMDB Dataset (10,000 Titles) &middot; XGBoost Regression &amp; Classification &middot; Star Schema Design
+</footer>
+
+<script>
+// ── Real data computed from imdb_data_cleaned.csv ─────────────────────────
+const DB = {
+  All: {
+    total: 10000, avg: 6.83, high_pct: 29.1,
+    types_dist: { Movie: 8421, 'TV Show': 1327, 'Web Series': 252 },
+    hist_bins:  [1.0,1.5,2.0,2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.0,8.5,9.0,9.5],
+    hist_freq:  [5,10,11,18,16,39,63,148,292,753,1269,1839,1848,1838,1206,530,104,11],
+    decade_labels: ['1950s','1960s','1970s','1980s','1990s','2000s','2010s','2020s'],
+    decade_avg:    [7.68,7.56,7.30,6.95,6.80,6.70,6.82,6.70],
+    decade_counts: [135,204,314,662,1212,2309,3252,1770],
+    genre_labels:  ['Drama','Crime','Adventure','Romance','Mystery','Comedy','Action','Thriller','Fantasy','Horror'],
+    genre_avg:     [7.07,6.93,6.76,6.74,6.71,6.70,6.63,6.59,6.56,6.19],
+  },
+  Movie: {
+    total: 8421, avg: 6.66, high_pct: 21.5,
+    types_dist: { Movie: 8421, 'TV Show': 0, 'Web Series': 0 },
+    hist_bins:  [1.0,1.5,2.0,2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0,6.5,7.0,7.5,8.0,8.5,9.0,9.5],
+    hist_freq:  [4,9,11,18,15,37,60,141,285,734,1241,1754,1660,1464,791,175,21,1],
+    decade_labels: ['1950s','1960s','1970s','1980s','1990s','2000s','2010s','2020s'],
+    decade_avg:    [7.66,7.54,7.25,6.85,6.70,6.55,6.56,6.43],
+    decade_counts: [132,193,300,609,1101,2041,2603,1300],
+    genre_labels:  ['Drama','Crime','Romance','Adventure','Comedy','Action','Mystery','Thriller','Fantasy','Horror'],
+    genre_avg:     [6.99,6.88,6.73,6.66,6.65,6.58,6.57,6.54,6.50,6.17],
+  },
+  'TV Show': {
+    total: 1327, avg: 7.76, high_pct: 70.9,
+    types_dist: { Movie: 0, 'TV Show': 1327, 'Web Series': 0 },
+    hist_bins:  [5.0,5.5,6.0,6.5,7.0,7.5,8.0,8.5,9.0,9.5],
+    hist_freq:  [7,19,28,85,188,374,415,155,45,11],
+    decade_labels: ['1960s','1970s','1980s','1990s','2000s','2010s','2020s'],
+    decade_avg:    [7.73,7.65,7.54,7.49,7.57,7.83,7.97],
+    decade_counts: [11,14,53,111,268,649,221],
+    genre_labels:  ['Drama','Crime','Adventure','Comedy','Action','Mystery','Thriller','Fantasy','Sci-Fi','Animation'],
+    genre_avg:     [7.81,7.70,7.56,7.40,7.38,7.36,7.30,7.17,7.10,7.05],
+  },
+  'Web Series': {
+    total: 252, avg: 7.64, high_pct: 63.5,
+    types_dist: { Movie: 0, 'TV Show': 0, 'Web Series': 252 },
+    hist_bins:  [5.0,5.5,6.0,6.5,7.0,7.5,8.0,8.5,9.0,9.5],
+    hist_freq:  [3,0,0,13,76,108,29,10,9,4],
+    decade_labels: ['1980s','1990s','2000s','2010s','2020s'],
+    decade_avg:    [9.30,7.95,8.74,7.62,7.37],
+    decade_counts: [1,0,14,147,90],
+    genre_labels:  ['Drama','Documentary','History','Animation','Crime','Action','Adventure','Thriller','Comedy','Sci-Fi'],
+    genre_avg:     [7.95,8.74,8.51,8.10,7.82,7.75,7.68,7.52,7.40,7.30],
+  },
+};
+
+const TOP10 = [
+  { rank:1,  title:'Breaking Bad',             url:'https://www.imdb.com/title/tt0903747/', type:'TV Show',    year:2008, genres:'Crime, Drama, Thriller',          rating:9.5, votes:'2,347,001' },
+  { rank:2,  title:'Band of Brothers',         url:'https://www.imdb.com/title/tt0185906/', type:'Web Series', year:2001, genres:'Action, Drama, History',           rating:9.4, votes:'545,223' },
+  { rank:3,  title:'Planet Earth',             url:'https://www.imdb.com/title/tt0491464/', type:'Web Series', year:2006, genres:'Documentary, Family',              rating:9.4, votes:'176,293' },
+  { rank:4,  title:'Planet Earth II',          url:'https://www.imdb.com/title/tt5491994/', type:'Web Series', year:2016, genres:'Documentary, Family',              rating:9.4, votes:'139,401' },
+  { rank:5,  title:'The Shawshank Redemption', url:'https://www.imdb.com/title/tt0111161/', type:'Movie',      year:1994, genres:'Drama',                            rating:9.3, votes:'3,175,959' },
+  { rank:6,  title:'Chernobyl',                url:'https://www.imdb.com/title/tt7366338/', type:'Web Series', year:2019, genres:'Drama, History, Thriller',         rating:9.3, votes:'860,432' },
+  { rank:7,  title:'Avatar: The Last Airbender',url:'https://www.imdb.com/title/tt0417299/', type:'TV Show',   year:2005, genres:'Action, Adventure, Animation',     rating:9.3, votes:'301,115' },
+  { rank:8,  title:'The Wire',                 url:'https://www.imdb.com/title/tt0306414/', type:'TV Show',    year:2002, genres:'Crime, Drama, Thriller',           rating:9.3, votes:'372,211' },
+  { rank:9,  title:'Blue Planet II',           url:'https://www.imdb.com/title/tt6769208/', type:'Web Series', year:2017, genres:'Documentary, Family',              rating:9.3, votes:'89,342' },
+  { rank:10, title:'Cosmos',                   url:'https://www.imdb.com/title/tt0081846/', type:'Web Series', year:1980, genres:'Documentary',                       rating:9.3, votes:'87,122' },
+];
+
+// ── Colors ─────────────────────────────────────────────────────────────────
+const C = {
+  yellow: '#f5c518', orange: '#e87c1e', blue: '#4d9de0',
+  green:  '#3fb950', purple: '#b794f4', red:  '#f85149',
+  muted:  '#7a8a9e',
+};
+
+Chart.defaults.color = C.muted;
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+Chart.defaults.font.size = 11;
+
+const gridOpts = { color: 'rgba(255,255,255,0.05)', drawBorder: false };
+
+// ── Chart instances ─────────────────────────────────────────────────────────
+let typeChart, ratingChart, genreChart, decadeChart;
+
+function buildTypeChart(data) {
+  const labels = Object.keys(data.types_dist).filter(k => data.types_dist[k] > 0);
+  const values = labels.map(k => data.types_dist[k]);
+  const colors = { Movie: C.yellow, 'TV Show': C.blue, 'Web Series': C.green };
+
+  if (typeChart) typeChart.destroy();
+  typeChart = new Chart(document.getElementById('typeChart'), {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: labels.map(l => colors[l]),
+        borderColor: '#0f1622',
+        borderWidth: 3,
+        hoverOffset: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '68%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.label}: ${ctx.parsed.toLocaleString()} titles`
+          }
+        }
+      }
+    }
+  });
+}
+
+function buildRatingChart(data) {
+  if (ratingChart) ratingChart.destroy();
+  ratingChart = new Chart(document.getElementById('ratingDistChart'), {
+    type: 'bar',
+    data: {
+      labels: data.hist_bins.map(v => v.toFixed(1)),
+      datasets: [{
+        label: 'Titles',
+        data: data.hist_freq,
+        backgroundColor: data.hist_bins.map(v => v >= 7.5 ? C.green : C.blue),
+        borderRadius: 3,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y} titles` } }
+      },
+      scales: {
+        x: { grid: gridOpts, ticks: { autoSkip: true, maxTicksLimit: 10 } },
+        y: { grid: gridOpts, ticks: { callback: v => v >= 1000 ? (v/1000).toFixed(1)+'k' : v } }
+      }
+    }
+  });
+}
+
+function buildGenreChart(data) {
+  if (genreChart) genreChart.destroy();
+  const labels = [...data.genre_labels].reverse();
+  const values = [...data.genre_avg].reverse();
+  const minVal = Math.min(...values);
+
+  genreChart = new Chart(document.getElementById('genreChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Avg Rating',
+        data: values,
+        backgroundColor: values.map(r => r >= 7.5 ? C.green : r >= 7.0 ? C.blue : C.orange),
+        borderRadius: 4,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => ` Avg: ${ctx.parsed.x.toFixed(2)}` } }
+      },
+      scales: {
+        x: {
+          grid: gridOpts,
+          min: Math.max(5.5, minVal - 0.5),
+          max: Math.min(9.5, Math.max(...values) + 0.3),
+          ticks: { callback: v => v.toFixed(1) }
+        },
+        y: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+function buildDecadeChart(data) {
+  if (decadeChart) decadeChart.destroy();
+  decadeChart = new Chart(document.getElementById('decadeChart'), {
+    type: 'bar',
+    data: {
+      labels: data.decade_labels,
+      datasets: [
+        {
+          type: 'line',
+          label: 'Avg Rating',
+          data: data.decade_avg,
+          borderColor: C.yellow,
+          backgroundColor: 'rgba(245,197,24,0.1)',
+          pointBackgroundColor: C.yellow,
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          tension: 0.35,
+          yAxisID: 'y',
+        },
+        {
+          type: 'bar',
+          label: 'Title Count',
+          data: data.decade_counts,
+          backgroundColor: 'rgba(77,157,224,0.22)',
+          borderColor: 'rgba(77,157,224,0.45)',
+          borderWidth: 1,
+          borderRadius: 3,
+          yAxisID: 'y2',
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { mode: 'index', intersect: false }
+      },
+      scales: {
+        x: { grid: gridOpts },
+        y: {
+          grid: gridOpts,
+          position: 'left',
+          min: 5.5, max: 9.8,
+          ticks: { callback: v => v.toFixed(1) },
+          title: { display: true, text: 'Avg Rating', color: C.yellow, font: { size: 10 } }
+        },
+        y2: {
+          position: 'right',
+          grid: { display: false },
+          ticks: { callback: v => v >= 1000 ? (v/1000).toFixed(1)+'k' : v, color: C.blue },
+          title: { display: true, text: 'Count', color: C.blue, font: { size: 10 } }
+        }
+      }
+    }
+  });
+}
+
+// ── Top 10 Table ────────────────────────────────────────────────────────────
+function buildTop10() {
+  const tbody = document.getElementById('top10-body');
+  const rankClass = r => r === 1 ? 'gold' : r === 2 ? 'silver' : r === 3 ? 'bronze' : '';
+  const ratingClass = v => v >= 9.0 ? 'rating-9' : v >= 8.0 ? 'rating-8' : 'rating-7';
+  const typeClass = t => t === 'Movie' ? 'type-movie' : t === 'TV Show' ? 'type-tv' : 'type-web';
+
+  tbody.innerHTML = TOP10.map(t => `
+    <tr>
+      <td><span class="rank-badge ${rankClass(t.rank)}">${t.rank}</span></td>
+      <td class="title-cell"><a href="${t.url}" target="_blank" rel="noopener">${t.title}</a></td>
+      <td><span class="type-pill ${typeClass(t.type)}">${t.type}</span></td>
+      <td style="color:var(--muted)">${t.year}</td>
+      <td class="genre-cell">${t.genres}</td>
+      <td><span class="rating-pill ${ratingClass(t.rating)}">${t.rating}</span></td>
+      <td style="color:var(--muted);font-size:11px">${t.votes}</td>
+    </tr>
+  `).join('');
+}
+
+// ── Filter handler ──────────────────────────────────────────────────────────
+function setFilter(type, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const d = DB[type];
+  document.getElementById('kpi-total').textContent = d.total.toLocaleString();
+  document.getElementById('kpi-avg').textContent   = d.avg.toFixed(2);
+  document.getElementById('kpi-high').textContent  = d.high_pct + '%';
+
+  buildTypeChart(d);
+  buildRatingChart(d);
+  buildGenreChart(d);
+  buildDecadeChart(d);
+}
+
+// ── Scatter Chart ────────────────────────────────────────────────────────────
+let scatterChart = null;
+let SD = null; // scatter data cache
+
+const TYPE_COLORS = { M: C.yellow, T: C.blue, W: C.green };
+const TYPE_COLORS_DIM = {
+  M: 'rgba(245,197,24,0.18)',
+  T: 'rgba(77,157,224,0.18)',
+  W: 'rgba(63,185,80,0.18)',
+};
+
+function buildScatterChart(highlighted) {
+  const wrap = document.querySelector('#scatterChart').parentElement;
+  const loading = document.getElementById('scatter-loading');
+
+  if (!SD) return;
+
+  loading.style.display = 'none';
+  wrap.style.display = 'block';
+
+  const hl = highlighted ? highlighted.toLowerCase().trim() : '';
+
+  // Build per-type datasets for legend + color grouping
+  const types  = ['M', 'T', 'W'];
+  const labels = { M: 'Movie', T: 'TV Show', W: 'Web Series' };
+  const n = SD.x.length;
+
+  // Split into highlighted vs normal points
+  const hlPoints  = [];
+  const normByType = { M: [], T: [], W: [] };
+
+  for (let i = 0; i < n; i++) {
+    const pt = { x: SD.x[i], y: SD.y[i], title: SD.t[i], tp: SD.tp[i] };
+    if (hl && SD.t[i].toLowerCase().includes(hl)) {
+      hlPoints.push(pt);
+    } else {
+      normByType[SD.tp[i]].push(pt);
+    }
+  }
+
+  const normalColors = {
+    M: 'rgba(245,197,24,0.55)',
+    T: 'rgba(77,157,224,0.55)',
+    W: 'rgba(63,185,80,0.55)',
+  };
+
+  const datasets = types.map(tp => ({
+    label: labels[tp],
+    data: normByType[tp],
+    pointBackgroundColor: hl ? TYPE_COLORS_DIM[tp] : normalColors[tp],
+    pointRadius: 3,
+    pointHoverRadius: 6,
+  }));
+
+  // Highlighted points on top
+  if (hlPoints.length > 0) {
+    datasets.push({
+      label: `"${highlighted}"`,
+      data: hlPoints,
+      pointBackgroundColor: C.red,
+      pointBorderColor: '#fff',
+      pointBorderWidth: 1.5,
+      pointRadius: 7,
+      pointHoverRadius: 9,
+    });
+  }
+
+  if (scatterChart) scatterChart.destroy();
+
+  scatterChart = new Chart(document.getElementById('scatterChart'), {
+    type: 'scatter',
+    data: { datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: hl ? 0 : 400 },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const pt = ctx.raw;
+              return ` ${pt.title}: ★ ${pt.y} (${pt.x.toLocaleString()} votes)`;
+            }
+          },
+          backgroundColor: 'rgba(15,22,34,0.95)',
+          borderColor: 'rgba(255,255,255,0.1)',
+          borderWidth: 1,
+          titleColor: C.muted,
+          bodyColor: '#e8edf5',
+          padding: 10,
+        }
+      },
+      scales: {
+        x: {
+          grid: gridOpts,
+          title: { display: true, text: 'Total Votes', color: C.muted, font: { size: 11 } },
+          ticks: {
+            callback: v => v >= 1000000 ? (v/1000000).toFixed(1)+'M'
+                        : v >= 1000 ? (v/1000).toFixed(0)+'k' : v,
+            maxTicksLimit: 8,
+          }
+        },
+        y: {
+          grid: gridOpts,
+          min: 1, max: 10,
+          title: { display: true, text: 'IMDb Rating', color: C.muted, font: { size: 11 } },
+          ticks: { callback: v => v.toFixed(1) }
+        }
+      }
+    }
+  });
+}
+
+function highlightTitle(query) {
+  buildScatterChart(query);
+}
+
+async function loadScatter() {
+  try {
+    const res = await fetch('data/scatter.json');
+    SD = await res.json();
+    buildScatterChart('');
+  } catch (e) {
+    document.getElementById('scatter-loading').textContent = 'Failed to load scatter data.';
+  }
+}
+
+// ── Init ────────────────────────────────────────────────────────────────────
+const initData = DB['All'];
+buildTypeChart(initData);
+buildRatingChart(initData);
+buildGenreChart(initData);
+buildDecadeChart(initData);
+buildTop10();
+loadScatter();
+</script>
+</body>
+</html>
